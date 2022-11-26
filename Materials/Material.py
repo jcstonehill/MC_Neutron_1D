@@ -2,6 +2,19 @@ from abc import ABC, abstractmethod
 
 class Material(ABC):
 
+  neutronMass = 1.008
+
+  @abstractmethod
+  def MassDensity(self) -> float:
+    return 0
+
+  @abstractmethod
+  def MolarMass(self) -> float:
+    return 0
+
+  def AtomDensity(self) -> float:
+    return 6.0221408*(10**23)*self.MassDensity() / self.MolarMass()
+
   @abstractmethod
   def ScatteringCrossSection(self) -> float:
     return 0
@@ -18,14 +31,14 @@ class Material(ABC):
   def NeutronsPerFission(self) -> int:
     pass
 
-  def TotalCrossSection(self) -> float:
-    return self.ScatteringCrossSection() + self.FissionCrossSection() + self.CaptureCrossSection()
+  def TotalCrossSection(self, E: float) -> float:
+    return self.ScatteringCrossSection(E) + self.FissionCrossSection(E) + self.CaptureCrossSection(E)
 
-  def ScatteringFraction(self) -> float:
-    return self.ScatteringCrossSection() / self.TotalCrossSection()
+  def ScatteringFraction(self, E: float) -> float:
+    return self.ScatteringCrossSection(E) / self.TotalCrossSection(E)
 
-  def CaptureFraction(self) -> float:
-    return self.CaptureCrossSection() / self.TotalCrossSection()
+  def CaptureFraction(self, E: float) -> float:
+    return self.CaptureCrossSection(E) / self.TotalCrossSection(E)
 
-  def FissionFraction(self) -> float:
-    return self.FissionCrossSection() / self.TotalCrossSection()
+  def FissionFraction(self, E: float) -> float:
+    return self.FissionCrossSection(E) / self.TotalCrossSection(E)

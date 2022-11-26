@@ -10,10 +10,10 @@ from RNG import CustomRNG as rng
 
 class MC_1DTest:
 
-    numOfParticlesDesired = 100000
+    numOfParticlesDesired = 10000
     numOfParticles = 0
 
-    numOfConvergenceCyclesDesired = 10
+    numOfConvergenceCyclesDesired = 15
     numOfConvergenceCycles = 0
 
     convergenceCycleIndex = []
@@ -36,7 +36,7 @@ class MC_1DTest:
         self.world = WorldGenerator()
 
     def CreateRecorder(self):
-        self.recorder = Recorder(-1, 1, 100)
+        self.recorder = Recorder(-100, 100, 100)
 
     def CreateFirstGenerationOfNeutrons(self):
         region = self.world.GetStartingRegion()
@@ -45,15 +45,25 @@ class MC_1DTest:
             self.neutrons.append(Neutron(self.world.GetStartingPointSource(), region))
 
     def SourceTermConvergenceLoop(self):
-        fissionSites: list[Neutron] = []
-        nextGeneration: list[Neutron] = []
-
         while(self.numOfConvergenceCycles < self.numOfConvergenceCyclesDesired):
+            fissionSites: list[Neutron] = []
+            nextGeneration: list[Neutron] = []  
+
             numOfParticles = 0
            
             self.recorder.Reset()
 
             for neutron in self.neutrons:
+                neutron.isAlive = True
+                neutron.DetermineNewFlightAngle()
+                neutron.DetermineUnrestrictedTravelDistance()
+                
+
+
+                # for neutron in self.neutrons:
+                #     print(neutron.position[0])
+                # print("**** NOW START ***")
+
                 while(neutron.isAlive):
 
                     interfacesHit: list[Interface] = []
@@ -86,16 +96,15 @@ class MC_1DTest:
                         self.recorder.RecordFlux(neutron.position, neutron.DesiredDestination())
                         neutron.position = neutron.DesiredDestination()
 
-                        division1 = neutron.region.material.ScatteringFraction()
-                        division2 = division1 + neutron.region.material.CaptureFraction()
+                        division1 = neutron.region.material.ScatteringFraction(neutron.E)
+                        division2 = division1 + neutron.region.material.CaptureFraction(neutron.E)
 
                         randomNumber = rng.RandomFromRange(0, 1)
 
                         self.recorder.RecordCollision(neutron.position)
                         # Scattering
                         if(randomNumber < division1):
-                            neutron.DetermineNewFlightAngle()
-                            neutron.DetermineUnrestrictedTravelDistance()
+                            neutron.Scatter()
                             self.recorder.RecordScattering(neutron.position)
                         # Cature
                         elif(randomNumber < division2):
@@ -108,9 +117,10 @@ class MC_1DTest:
                             fissionSites.append(Neutron(neutron.position, neutron.region))
 
                 numOfParticles = numOfParticles + 1
-                print(str(numOfParticles) + " / " + str(len(self.neutrons)) + " completed.")
+                #print(str(numOfParticles) + " / " + str(len(self.neutrons)) + " completed.")
 
             numOfNewNeutrons = 0
+
             for fissionSite in fissionSites:
                 numOfNewNeutrons = numOfNewNeutrons + fissionSite.region.material.NeutronsPerFission()
 
@@ -118,8 +128,8 @@ class MC_1DTest:
 
             for _ in range(self.numOfParticlesDesired):
                 randomIndex = np.random.randint(0, len(fissionSites))
-                fissionSites[randomIndex].isAlive = True
-                nextGeneration.append(fissionSites[randomIndex])
+                neutronToCopy = fissionSites[randomIndex]
+                nextGeneration.append(Neutron(neutronToCopy.position, neutronToCopy.region))
 
             newShannonEntropy = 0
 
@@ -139,7 +149,11 @@ class MC_1DTest:
             nextGeneration = []
             fissionSites = []
 
-            print("***********Convergence Cycle Completed***********")
+            for neutron in self.neutrons:
+                if(neutron.position[0] == 1):
+                    print("hit")
+
+            print("Cycle Completed: " + str(self.numOfConvergenceCycles) + " / " + str(self.numOfConvergenceCyclesDesired))
 
     def Plot(self):
         x = []

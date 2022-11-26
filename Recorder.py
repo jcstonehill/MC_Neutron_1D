@@ -49,7 +49,7 @@ class FluxDetector1D:
     self.position = position
 
   def CheckForFlux(self, startPosition: list[float], endPosition: list[float]):
-    if(startPosition[0] > self.position[0] != endPosition[0] > self.position[0]):
+    if((startPosition[0] > self.position[0]) != (endPosition[0] > self.position[0])):
       self.flux = self.flux + 1
 
   def Reset(self):
@@ -81,7 +81,8 @@ class Recorder():
       self.bins.append(Bin1D(xMin, xMax))
 
   def CreateFluxDetectors(self):
-    xStart = self.dx/2
+    xStart = -100 + self.dx/2
+
     for i in range(self.numberOfXBins):
       self.fluxDetectors.append(FluxDetector1D([(xStart + i*self.dx), 0, 0]))
 
