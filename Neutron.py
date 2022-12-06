@@ -41,11 +41,8 @@ class Neutron():
     C1 = oldE / ((a+1)**2)
     C2 = cos(angle)
 
-    try:
-      C3 = sqrt((cos(angle)**2)+(a**2)-1)
-    except:
-      print(angle)
-      print(a)
+    C3 = sqrt((cos(angle)**2)+(a**2)-1)
+
 
     self.E = C1*((C2+C3)**2)
 
@@ -71,7 +68,11 @@ class Neutron():
     self.direction = newDirection
 
   def DetermineUnrestrictedTravelDistance(self):
-    self.travelDistance = -(1/self.region.material.TotalCrossSection(self.E))*np.log(rng.RandomFromRange(0, 1))
+    totalCrossSection = self.region.material.TotalCrossSection(self.E)
+    if(totalCrossSection == 0):
+      self.travelDistance = 10**12
+    else:
+      self.travelDistance = -(1/totalCrossSection)*np.log(rng.RandomFromRange(0, 1))
 
   def GetTravelVector(self) -> list[float]:
     travelVector = []

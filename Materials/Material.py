@@ -35,10 +35,22 @@ class Material(ABC):
     return self.ScatteringCrossSection(E) + self.FissionCrossSection(E) + self.CaptureCrossSection(E)
 
   def ScatteringFraction(self, E: float) -> float:
-    return self.ScatteringCrossSection(E) / self.TotalCrossSection(E)
+    totalCrossSection = self.TotalCrossSection(E)
+    if(totalCrossSection == 0):
+      return 0
+    else:
+      return self.ScatteringCrossSection(E) / self.TotalCrossSection(E)
 
   def CaptureFraction(self, E: float) -> float:
-    return self.CaptureCrossSection(E) / self.TotalCrossSection(E)
+    totalCrossSection = self.TotalCrossSection(E)
+    if(totalCrossSection == 0):
+      return 0
+    else:
+      return self.CaptureCrossSection(E) / self.TotalCrossSection(E)
 
   def FissionFraction(self, E: float) -> float:
-    return self.FissionCrossSection(E) / self.TotalCrossSection(E)
+    totalCrossSection = self.TotalCrossSection(E)
+    if(totalCrossSection == 0):
+      return 0
+    else:
+      return self.FissionCrossSection(E) / self.TotalCrossSection(E)

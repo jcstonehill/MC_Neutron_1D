@@ -1,19 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+from math import sqrt, log2
 
 from Neutron import Neutron
 from Interface import Interface, InterfaceType
 from Recorder import Recorder
 from WorldGenerator import WorldGenerator
 from RNG import CustomRNG as rng
+from time import sleep
 
 class MC_1DTest:
 
     numOfParticlesDesired = 10000
     numOfParticles = 0
 
-    numOfConvergenceCyclesDesired = 15
+    numOfConvergenceCyclesDesired = 10
     numOfConvergenceCycles = 0
 
     convergenceCycleIndex = []
@@ -22,7 +23,6 @@ class MC_1DTest:
 
     recorder: Recorder
     neutrons: list[Neutron] = []
-    queuedNeutrons: list[Neutron] = []
 
     def Start(self):
         self.CreateWorld()
@@ -36,13 +36,18 @@ class MC_1DTest:
         self.world = WorldGenerator()
 
     def CreateRecorder(self):
-        self.recorder = Recorder(-100, 100, 100)
+        self.recorder = Recorder(-100, 100, 200)
+        
 
     def CreateFirstGenerationOfNeutrons(self):
         region = self.world.GetStartingRegion()
 
         for _ in range(self.numOfParticlesDesired):
-            self.neutrons.append(Neutron(self.world.GetStartingPointSource(), region))
+            #position = rng.RandomFromRange(75,100)
+
+
+            #self.neutrons.append(Neutron([position, 0, 0], self.world.regions[2]))
+            self.neutrons.append(Neutron(self.world.startingSourcePosition, region))
 
     def SourceTermConvergenceLoop(self):
         while(self.numOfConvergenceCycles < self.numOfConvergenceCyclesDesired):
@@ -57,15 +62,10 @@ class MC_1DTest:
                 neutron.isAlive = True
                 neutron.DetermineNewFlightAngle()
                 neutron.DetermineUnrestrictedTravelDistance()
-                
-
-
-                # for neutron in self.neutrons:
-                #     print(neutron.position[0])
-                # print("**** NOW START ***")
 
                 while(neutron.isAlive):
-
+                    #print("position: " + str(neutron.position[0]) + ", direction: " + str(neutron.direction[0]) + ", energy: " + str(neutron.E))
+                    #sleep(1)
                     interfacesHit: list[Interface] = []
                     for interface in neutron.region.interfaces:
                         if(interface.IsHitByParticleDuringFlight(neutron.position, neutron.DesiredDestination())):
@@ -75,23 +75,35 @@ class MC_1DTest:
                         collidedInterface = min(interfacesHit, key=lambda interface: interface.GetCollisionDistance(neutron.position, neutron.DesiredDestination()))
 
                         if(collidedInterface.interfaceType == InterfaceType.Coupled):
-                            self.recorder.RecordFlux(neutron.position, collidedInterface.position)
-                            neutron.position = collidedInterface.position
+                            newPosition = collidedInterface.GetCollisionLocation(neutron.position, neutron.DesiredDestination())
+                            self.recorder.RecordFlux(neutron.position, newPosition)
+                            neutron.position = newPosition
                             newRegion = collidedInterface.GetCoupledRegion(neutron.region)
                             neutron.SetRegion(newRegion)
-                        elif(collidedInterface.interfaceType == InterfaceType.Void):
-                            self.recorder.RecordFlux(neutron.position, collidedInterface.position)
-                            neutron.position = collidedInterface.position
-                            neutron.Kill()
-                        elif(collidedInterface.interfaceType == InterfaceType.Reflective):
                             neutron.DetermineUnrestrictedTravelDistance()
-                            self.recorder.RecordFlux(neutron.position, collidedInterface.position)
-                            neutron.position = collidedInterface.position
+                        elif(collidedInterface.interfaceType == InterfaceType.Void):                      
+                            newPosition = collidedInterface.GetCollisionLocation(neutron.position, neutron.DesiredDestination())
+                            self.recorder.RecordFlux(neutron.position, newPosition)
+                            neutron.position = newPosition
+                            neutron.Kill()
+                            #print("Killed in void at " + str(neutron.position[0]))
+                        elif(collidedInterface.interfaceType == InterfaceType.Reflective):
+
+                            newPosition = collidedInterface.GetCollisionLocation(neutron.position, neutron.DesiredDestination())
+                            #print(neutron.position[0])
+                            #print(newPosition[0])
+                            self.recorder.RecordFlux(neutron.position, newPosition)
+                            neutron.position = newPosition
+                            vectorToCollision = [(newPosition[0] - neutron.position[0]), (newPosition[1] - neutron.position[1]), (newPosition[2] - neutron.position[2])]
+
+                            distanceTraveled = sqrt((vectorToCollision[0]**2)+(vectorToCollision[1]**2)+(vectorToCollision[2]**2))
+                            neutron.travelDistance = neutron.travelDistance - distanceTraveled
                             
                             oldDirection = neutron.GetDirectionUnitVector()
                             newDirection = oldDirection
                             newDirection[0] = -1 * newDirection[0]
                             neutron.SetFlightAngle(newDirection)
+                            #print("Reflected at " + str(neutron.position[0]))
                     else:
                         self.recorder.RecordFlux(neutron.position, neutron.DesiredDestination())
                         neutron.position = neutron.DesiredDestination()
@@ -102,16 +114,25 @@ class MC_1DTest:
                         randomNumber = rng.RandomFromRange(0, 1)
 
                         self.recorder.RecordCollision(neutron.position)
+
+                        # if(neutron.position[0] < -15 and neutron.position[0] > -25):
+                        #     print("hit")
+                        #     print(neutron.position[0])
+                        #     print(neutron.direction[0])
+                        #     print(neutron.travelDistance)
                         # Scattering
                         if(randomNumber < division1):
                             neutron.Scatter()
                             self.recorder.RecordScattering(neutron.position)
+                            #print("Scattered at " + str(neutron.position[0]))
                         # Cature
                         elif(randomNumber < division2):
                             self.recorder.RecordCapture(neutron.position)
                             neutron.Kill()
+                            #print("Captured at " + str(neutron.position[0]))
                         # Fission
                         else:
+                            #print("Fission at " + str(neutron.position[0]))
                             neutron.Kill()
                             self.recorder.RecordFission(neutron.position)
                             fissionSites.append(Neutron(neutron.position, neutron.region))
@@ -125,11 +146,12 @@ class MC_1DTest:
                 numOfNewNeutrons = numOfNewNeutrons + fissionSite.region.material.NeutronsPerFission()
 
             self.kEff.append(numOfNewNeutrons / self.numOfParticlesDesired)
-
+            #self.kEff.append(1)
             for _ in range(self.numOfParticlesDesired):
                 randomIndex = np.random.randint(0, len(fissionSites))
                 neutronToCopy = fissionSites[randomIndex]
                 nextGeneration.append(Neutron(neutronToCopy.position, neutronToCopy.region))
+                #nextGeneration.append(Neutron([0,0,0], self.world.startingRegion))
 
             newShannonEntropy = 0
 
@@ -137,7 +159,7 @@ class MC_1DTest:
                 Si = bin.numberOfFissions / self.numOfParticlesDesired
 
                 if(Si>0):
-                    newShannonEntropy = newShannonEntropy + Si*math.log2(Si)
+                    newShannonEntropy = newShannonEntropy + Si*log2(Si)
 
             newShannonEntropy = newShannonEntropy * -1
 
@@ -157,6 +179,7 @@ class MC_1DTest:
 
     def Plot(self):
         x = []
+        x_flux = []
         scattering = []
         capture = []
         fissions = []
@@ -172,19 +195,26 @@ class MC_1DTest:
 
         for fluxDetector in self.recorder.fluxDetectors:
             flux.append(fluxDetector.flux)
-        plt.subplot(4,2,1)
-        plt.plot(self.convergenceCycleIndex, self.kEff, label = "kEff")
-        plt.subplot(4,2,2)
-        plt.plot(self.convergenceCycleIndex, self.shannonEntropy, label = "Shannon Entropy")
-        plt.subplot(4,2,3)
-        plt.plot(x, scattering)
-        plt.subplot(4,2,4)
-        plt.plot(x, capture)
-        plt.subplot(4,2,5)
-        plt.plot(x, fissions)
-        plt.subplot(4,2,6)
-        plt.plot(x, collisions)
-        plt.subplot(4,2,7)
-        plt.plot(x,flux)
+            x_flux.append(fluxDetector.position[0])
+
+        # plt.plot(self.convergenceCycleIndex, self.kEff, label = "kEff")
+        # plt.show()
+
+        # plt.plot(self.convergenceCycleIndex, self.shannonEntropy, label = "Shannon Entropy")
+        # plt.show()
+
+        # plt.plot(x, scattering)
+        # plt.show()
+
+        # plt.plot(x, capture)
+        # plt.show()
+
+        # plt.plot(x, fissions)
+        # plt.show()
+
+        # plt.plot(x, collisions)
+        # plt.show()
+
+        plt.plot(x_flux,flux)
 
         plt.show()

@@ -81,7 +81,7 @@ class Recorder():
       self.bins.append(Bin1D(xMin, xMax))
 
   def CreateFluxDetectors(self):
-    xStart = -100 + self.dx/2
+    xStart = -100 + (self.dx/2)
 
     for i in range(self.numberOfXBins):
       self.fluxDetectors.append(FluxDetector1D([(xStart + i*self.dx), 0, 0]))

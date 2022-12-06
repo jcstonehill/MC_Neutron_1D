@@ -20,6 +20,10 @@ class Interface(ABC):
     pass
 
   @abstractmethod
+  def GetCollisionLocation(self, position: list[float], direction: list[float]) -> float:
+    pass
+
+  @abstractmethod
   def IsHitByParticleDuringFlight(self, startPosition: list[float], endPosition: list[float]) -> bool:
     pass
 
@@ -57,6 +61,23 @@ class Point(Interface):
 
   def GetCollisionDistance(self, startPosition: list[float], endPosition: list[float]):
     return abs(self.position[0] - startPosition[0])
+
+  def GetCollisionLocation(self, startPosition: list[float], endPosition: list[float]):
+    dx = endPosition[0] - startPosition[0]
+    dy = endPosition[1] - startPosition[1]
+    dz = endPosition[2] - startPosition[2]
+
+    x0 = startPosition[0]
+    y0 = startPosition[1]
+    z0 = startPosition[2]
+
+    t = (self.position[0] - x0)/dx
+    x = self.position[0]
+    y = y0 + (t*dy)
+    z = z0 + (t*dz)
+
+    #return [x, y , z]
+    return self.position
 
   def GetCoupledRegion(self, oldRegion: Region) -> Region:
     newRegion: Region
